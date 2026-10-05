@@ -8,7 +8,7 @@ from supabase import Client, create_client
 
 
 query_params = st.query_params
-if "room" in query_params and not st.session_state.code_chambre:
+if "room" in query_params and not st.session_state.get("code_chambre"):
     st.session_state.code_chambre = query_params["room"].upper()
 
 st.set_page_config(
@@ -17,7 +17,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded",
 )
-
 
 
 PALETTES = {
@@ -176,7 +175,7 @@ PALETTES = {
     },
     "Neuvillette": {
         "full_name": "Neuvillette",
-        "emoji": "⚖️️",
+        "emoji": "⚖",
         "bg": "linear-gradient(135deg, #0b1a30 0%, #16325c 50%, #050d1a 100%)",
         "primary": "#2563eb",
         "secondary": "#93c5fd",
@@ -403,7 +402,6 @@ def appliquer_style(theme_key):
     st.markdown(css, unsafe_allow_html=True)
 
 
-
 if not st.session_state.code_chambre:
     appliquer_style("Kinich")
 
@@ -450,8 +448,11 @@ if not st.session_state.code_chambre:
 
     with col2:
         st.subheader("REJOINDRE")
+        code_defaut = st.session_state.get("code_chambre", "")
         code_input = (
-            st.text_input("Code de chambre :", placeholder="Ex: ABCD")
+            st.text_input(
+                "Code de chambre :", value=code_defaut, placeholder="Ex: ABCD"
+            )
             .strip()
             .upper()
         )
@@ -535,8 +536,6 @@ else:
     if st.sidebar.button("🔄 Actualiser l'état"):
         st.rerun()
 
-
-
     if phase_actuelle == "ATTENTE":
         st.write("## ⏳ Salle d'attente")
         st.info(f"En attente des joueurs... ({total_joueurs} présent(s))")
@@ -550,8 +549,21 @@ else:
 
         st.write("---")
 
+        lien_partage = (
+            f"https://impostor-game-genshin.streamlit.app/?room={code}"
+        )
+        st.subheader("📲 Partager la salle avec vos amis")
+        st.code(lien_partage, language=None)
+        st.caption(
+            "Copiez ce lien et envoyez-le sur WhatsApp ! Vos amis n'auront qu'à entrer leur pseudo."
+        )
+
+        st.write("---")
+
         if pseudo == host_pseudo:
-            st.success("👑 Tu es l'hôte ! Cliquez ci-dessous pour démarrer dès que tout le monde est là.")
+            st.success(
+                "👑 Tu es l'hôte ! Clique ci-dessous pour démarrer dès que tout le monde est là."
+            )
             if st.button("🚀 Lancer la partie", use_container_width=True):
                 supabase.table("rooms").update(
                     {
@@ -563,7 +575,16 @@ else:
         else:
             st.warning(f"Attendez que **{host_pseudo}** lance la partie...")
 
-
+        components.html(
+            """
+            <script>
+                setTimeout(function(){
+                    window.parent.postMessage({type: 'streamlit:rerun'}, '*');
+                }, 3000);
+            </script>
+            """,
+            height=0,
+        )
 
     elif phase_actuelle == "ECRITURE":
         afficher_compte_a_rebours(
@@ -571,7 +592,7 @@ else:
         )
         temps_restant = max(0, timer_end - int(time.time()))
 
-        st.write("## Phase 1 : Écrire une phrase")
+        st.write("## ✍️ Étape 1 : Écrire une phrase")
 
         res_phrases = (
             supabase.table("phrases")
@@ -625,15 +646,13 @@ else:
                 else:
                     st.error("⚠ Écris une phrase pour valider !")
 
-
-
     elif phase_actuelle == "VOTE":
         afficher_compte_a_rebours(
             timer_end, char_info["accent"], char_info["primary"]
         )
         temps_restant = max(0, timer_end - int(time.time()))
 
-        st.write("## Phase 2: Votez pour la cible !")
+        st.write("## 🎲 Étape 2 : Votez pour la cible !")
 
         carte_actuelle = (
             supabase.table("phrases")
@@ -685,11 +704,8 @@ else:
                     ).execute()
                     st.rerun()
 
-
-
-
     elif phase_actuelle == "RESULTATS":
-        st.write("## 📊 Phase 3 : Révélation")
+        st.write("## 📊 Étape 3 : Révélation")
 
         carte_actuelle = (
             supabase.table("phrases")
@@ -798,17 +814,20 @@ else:
                         st.session_state.code_chambre = None
                         st.rerun()
 
-
         st.write("---")
         st.subheader("🔗 Partager la partie")
 
-
-        lien_partage = f"https://impostor-game-genshin.streamlit.app/?room={code}"
+        lien_partage = (
+            f"https://impostor-game-genshin.streamlit.app/?room={code}"
+        )
 
         col_link, col_copy = st.columns([3, 1])
         with col_link:
             st.text_input(
-                "Lien :", value=lien_partage, disabled=True, label_visibility="collapsed"
+                "Lien :",
+                value=lien_partage,
+                disabled=True,
+                label_visibility="collapsed",
             )
         with col_copy:
             if st.button("Copier"):
