@@ -1,11 +1,10 @@
+import os
 import random
 import time
 import matplotlib.pyplot as plt
 import streamlit as st
 import streamlit.components.v1 as components
 from supabase import Client, create_client
-import os
-
 
 st.set_page_config(
     page_title="Jeu Imposteur",
@@ -14,12 +13,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-
 if "code_chambre" not in st.session_state:
     st.session_state.code_chambre = None
 if "pseudo" not in st.session_state:
     st.session_state.pseudo = ""
-
 
 PALETTES = {
     "Kinich": {
@@ -240,7 +237,6 @@ PALETTES = {
     },
 }
 
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -256,18 +252,14 @@ if not SUPABASE_KEY:
     except Exception:
         SUPABASE_KEY = ""
 
-
 @st.cache_resource
 def init_supabase() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
 supabase = init_supabase()
-
 
 def generer_code():
     return "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k=4))
-
 
 def afficher_compte_a_rebours(timer_end, accent_color, primary_color):
     js_code = f"""
@@ -288,6 +280,7 @@ def afficher_compte_a_rebours(timer_end, accent_color, primary_color):
 
     <script>
         const timerEnd = {timer_end};
+        let isReloaded = false;
         function updateTimer() {{
             const now = Math.floor(Date.now() / 1000);
             const remaining = Math.max(0, timerEnd - now);
@@ -295,7 +288,8 @@ def afficher_compte_a_rebours(timer_end, accent_color, primary_color):
             if (elem) {{
                 elem.innerText = remaining;
             }}
-            if (remaining <= 0) {{
+            if (remaining <= 0 && !isReloaded) {{
+                isReloaded = true;
                 window.parent.postMessage({{type: 'streamlit:rerun'}}, '*');
             }}
         }}
@@ -305,111 +299,14 @@ def afficher_compte_a_rebours(timer_end, accent_color, primary_color):
     """
     components.html(js_code, height=65)
 
-
 def appliquer_style(theme_key):
     t = PALETTES.get(theme_key, PALETTES["Kinich"])
-    css = f"""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
-
-        .stApp {{
-            background: {t['bg']} !important;
-            color: #f8fafc;
-            font-family: 'Montserrat', sans-serif;
-        }}
-
-        h1 {{
-            font-size: 2.2rem !important;
-            font-weight: 900 !important;
-            color: {t['text_title']} !important;
-            text-transform: uppercase;
-            text-align: center;
-            margin: 0;
-        }}
-
-        h2, h3 {{
-            color: {t['secondary']} !important;
-            font-weight: 800 !important;
-        }}
-
-        .phrase-card {{
-            background: rgba(255, 255, 255, 0.08);
-            border: 2px solid {t['primary']};
-            border-radius: 12px;
-            padding: 20px;
-            color: #ffffff !important;
-            text-align: center;
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin: 15px 0;
-        }}
-
-        .revelation-card {{
-            background: rgba(0, 0, 0, 0.5);
-            border: 2px solid {t['primary']};
-            border-radius: 12px;
-            padding: 20px;
-            color: #ffffff !important;
-            text-align: center;
-            margin-top: 15px;
-        }}
-
-        .stButton > button {{
-            border-radius: 10px !important;
-            font-weight: 800 !important;
-            background: linear-gradient(135deg, {t['primary']} 0%, {t['accent']} 100%) !important;
-            color: #ffffff !important;
-            padding: 0.6rem 1.2rem !important;
-            border: none !important;
-        }}
-
-        .stTextInput input, .stTextArea textarea, div[data-baseweb="select"] input {{
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            -webkit-text-fill-color: #0f172a !important;
-            border-radius: 8px !important;
-            font-weight: 700 !important;
-        }}
-
-        div[data-baseweb="select"] > div {{
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            border-radius: 8px !important;
-        }}
-
-        div[data-testid="stRadio"] label {{
-            color: #ffffff !important;
-            font-weight: 700 !important;
-        }}
-
-        div[data-testid="stRadio"] p {{
-            color: {t['secondary']} !important;
-            font-weight: 800 !important;
-            font-size: 1.1rem !important;
-        }}
-
-        label {{
-            color: #ffffff !important;
-            font-weight: 700 !important;
-        }}
-
-        .header-container {{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 25px;
-        }}
-
-        .character-icon {{
-            font-size: 4rem;
-            text-align: center;
-            margin-bottom: 10px;
-        }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
-
+    if os.path.exists("style.html"):
+        with open("style.html", "r", encoding="utf-8") as f:
+            css = f.read()
+        for k, v in t.items():
+            css = css.replace(f"{{{{ {k} }}}}", str(v))
+        st.markdown(css, unsafe_allow_html=True)
 
 if not st.session_state.code_chambre:
     try:
@@ -599,12 +496,13 @@ else:
                     f"Attendez que **{host_pseudo}** lance la partie..."
                 )
 
+            # Auto-rafraîchissement automatique toutes les 3 secondes en salle d'attente
             components.html(
                 """
                 <script>
                     setTimeout(function(){
                         window.parent.postMessage({type: 'streamlit:rerun'}, '*');
-                    }, 4000);
+                    }, 3000);
                 </script>
                 """,
                 height=0,
@@ -650,6 +548,16 @@ else:
             if deja_soumis:
                 st.info(
                     "✅ Ta phrase est enregistrée ! En attente des autres joueurs..."
+                )
+                components.html(
+                    """
+                    <script>
+                        setTimeout(function(){
+                            window.parent.postMessage({type: 'streamlit:rerun'}, '*');
+                        }, 3000);
+                    </script>
+                    """,
+                    height=0,
                 )
             else:
                 cible = st.selectbox("Qui vises-tu ?", liste_joueurs)
@@ -717,6 +625,16 @@ else:
                 if deja_vote:
                     st.info(
                         "✅ Ton vote est validé ! En attente de la fin du temps..."
+                    )
+                    components.html(
+                        """
+                        <script>
+                            setTimeout(function(){
+                                window.parent.postMessage({type: 'streamlit:rerun'}, '*');
+                            }, 3000);
+                        </script>
+                        """,
+                        height=0,
                     )
                 else:
                     vote_choix = st.radio(

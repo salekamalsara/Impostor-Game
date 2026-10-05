@@ -1,0 +1,98 @@
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+
+    .stApp {
+        background: {{ bg }} !important;
+        color: #f8fafc;
+        font-family: 'Montserrat', sans-serif;
+    }
+
+    h1 {
+        font-size: 2.2rem !important;
+        font-weight: 900 !important;
+        color: {{ text_title }} !important;
+        text-transform: uppercase;
+        text-align: center;
+        margin: 0;
+    }
+
+    h2, h3 {
+        color: {{ secondary }} !important;
+        font-weight: 800 !important;
+    }
+
+    .phrase-card {
+        background: rgba(255, 255, 255, 0.08);
+        border: 2px solid {{ primary }};
+        border-radius: 12px;
+        padding: 20px;
+        color: #ffffff !important;
+        text-align: center;
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 15px 0;
+    }
+
+    .revelation-card {
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid {{ primary }};
+        border-radius: 12px;
+        padding: 20px;
+        color: #ffffff !important;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .stButton > button {
+        border-radius: 10px !important;
+        font-weight: 800 !important;
+        background: linear-gradient(135deg, {{ primary }} 0%, {{ accent }} 100%) !important;
+        color: #ffffff !important;
+        padding: 0.6rem 1.2rem !important;
+        border: none !important;
+    }
+
+    .stTextInput input, .stTextArea textarea, div[data-baseweb="select"] input {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+    }
+
+    div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border-radius: 8px !important;
+    }
+
+    div[data-testid="stRadio"] label {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+
+    div[data-testid="stRadio"] p {
+        color: {{ secondary }} !important;
+        font-weight: 800 !important;
+        font-size: 1.1rem !important;
+    }
+
+    label {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+
+    .header-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .character-icon {
+        font-size: 4rem;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+</style>
