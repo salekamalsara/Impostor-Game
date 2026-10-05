@@ -7,16 +7,22 @@ import streamlit.components.v1 as components
 from supabase import Client, create_client
 
 
-query_params = st.query_params
-if "room" in query_params and not st.session_state.get("code_chambre"):
-    st.session_state.code_chambre = query_params["room"].upper()
-
 st.set_page_config(
     page_title="Jeu Imposteur",
     page_icon="🎭",
     layout="centered",
     initial_sidebar_state="expanded",
 )
+
+
+if "code_chambre" not in st.session_state:
+    st.session_state.code_chambre = None
+if "pseudo" not in st.session_state:
+    st.session_state.pseudo = ""
+
+query_params = st.query_params
+if "room" in query_params and not st.session_state.code_chambre:
+    st.session_state.code_chambre = str(query_params["room"]).upper()
 
 
 PALETTES = {
@@ -40,7 +46,7 @@ PALETTES = {
     },
     "Kaveh": {
         "full_name": "Kaveh",
-        "emoji": "🏛️",
+        "emoji": "🏛️️",
         "bg": "linear-gradient(135deg, #1c1917 0%, #3f2e18 50%, #1c1108 100%)",
         "primary": "#f59e0b",
         "secondary": "#fbbf24",
@@ -248,11 +254,6 @@ def init_supabase() -> Client:
 
 
 supabase = init_supabase()
-
-if "code_chambre" not in st.session_state:
-    st.session_state.code_chambre = None
-if "pseudo" not in st.session_state:
-    st.session_state.pseudo = ""
 
 
 def generer_code():
@@ -487,353 +488,359 @@ else:
     code = st.session_state.code_chambre
     pseudo = st.session_state.pseudo
 
-    room_data = (
+    res_room = (
         supabase.table("rooms")
         .select("*")
         .eq("code", code)
         .execute()
-        .data[0]
-    )
-    phase_actuelle = room_data.get("phase", "ATTENTE")
-    timer_end = room_data.get("timer_end", 0)
-    theme_key = room_data.get("theme", "Kinich")
-    host_pseudo = room_data.get("host", "")
-
-    char_info = PALETTES.get(theme_key, PALETTES["Kinich"])
-    appliquer_style(theme_key)
-
-    st.markdown(
-        f"<div class='character-icon'>{char_info['emoji']}</div>",
-        unsafe_allow_html=True,
     )
 
-    st.markdown(
-        f"<h1>{char_info['full_name']}</h1>",
-        unsafe_allow_html=True,
-    )
-    st.caption(f"Code de la salle : **{code}**")
+    if not res_room.data:
+        st.error("La salle n'existe plus.")
+        st.session_state.code_chambre = None
+        if st.button("Retour à l'accueil"):
+            st.rerun()
+    else:
+        room_data = res_room.data[0]
+        phase_actuelle = room_data.get("phase", "ATTENTE")
+        timer_end = room_data.get("timer_end", 0)
+        theme_key = room_data.get("theme", "Kinich")
+        host_pseudo = room_data.get("host", "")
 
-    res_joueurs = (
-        supabase.table("players")
-        .select("pseudo")
-        .eq("room_code", code)
-        .execute()
-    )
-    liste_joueurs = [j["pseudo"] for j in res_joueurs.data]
-    total_joueurs = len(liste_joueurs)
+        char_info = PALETTES.get(theme_key, PALETTES["Kinich"])
+        appliquer_style(theme_key)
 
-    st.sidebar.markdown("### Thème actuel")
-    st.sidebar.markdown(f"**{char_info['emoji']} {char_info['full_name']}**")
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### Joueurs en ligne")
-    for j in liste_joueurs:
-        if j == host_pseudo:
-            st.sidebar.markdown(f"- **{j} 👑 (Hôte)**")
-        else:
-            st.sidebar.markdown(f"- **{j}**")
+        st.markdown(
+            f"<div class='character-icon'>{char_info['emoji']}</div>",
+            unsafe_allow_html=True,
+        )
 
-    if st.sidebar.button("🔄 Actualiser l'état"):
-        st.rerun()
+        st.markdown(
+            f"<h1>{char_info['full_name']}</h1>",
+            unsafe_allow_html=True,
+        )
+        st.caption(f"Code de la salle : **{code}**")
 
-    if phase_actuelle == "ATTENTE":
-        st.write("## ⏳ Salle d'attente")
-        st.info(f"En attente des joueurs... ({total_joueurs} présent(s))")
+        res_joueurs = (
+            supabase.table("players")
+            .select("pseudo")
+            .eq("room_code", code)
+            .execute()
+        )
+        liste_joueurs = [j["pseudo"] for j in res_joueurs.data]
+        total_joueurs = len(liste_joueurs)
 
-        st.write("### Joueurs connectés :")
+        st.sidebar.markdown("### Thème actuel")
+        st.sidebar.markdown(f"**{char_info['emoji']} {char_info['full_name']}**")
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### Joueurs en ligne")
         for j in liste_joueurs:
             if j == host_pseudo:
-                st.write(f"- 👑 **{j}** (Créateur de la partie)")
+                st.sidebar.markdown(f"- **{j} 👑 (Hôte)**")
             else:
-                st.write(f"- 👤 **{j}**")
+                st.sidebar.markdown(f"- **{j}**")
 
-        st.write("---")
-
-        lien_partage = (
-            f"https://impostor-game-genshin.streamlit.app/?room={code}"
-        )
-        st.subheader("📲 Partager la salle avec vos amis")
-        st.code(lien_partage, language=None)
-        st.caption(
-            "Copiez ce lien et envoyez-le sur WhatsApp ! Vos amis n'auront qu'à entrer leur pseudo."
-        )
-
-        st.write("---")
-
-        if pseudo == host_pseudo:
-            st.success(
-                "👑 Tu es l'hôte ! Clique ci-dessous pour démarrer dès que tout le monde est là."
-            )
-            if st.button("🚀 Lancer la partie", use_container_width=True):
-                supabase.table("rooms").update(
-                    {
-                        "phase": "ECRITURE",
-                        "timer_end": int(time.time()) + 120,
-                    }
-                ).eq("code", code).execute()
-                st.rerun()
-        else:
-            st.warning(f"Attendez que **{host_pseudo}** lance la partie...")
-
-        components.html(
-            """
-            <script>
-                setTimeout(function(){
-                    window.parent.postMessage({type: 'streamlit:rerun'}, '*');
-                }, 3000);
-            </script>
-            """,
-            height=0,
-        )
-
-    elif phase_actuelle == "ECRITURE":
-        afficher_compte_a_rebours(
-            timer_end, char_info["accent"], char_info["primary"]
-        )
-        temps_restant = max(0, timer_end - int(time.time()))
-
-        st.write("## ✍️ Étape 1 : Écrire une phrase")
-
-        res_phrases = (
-            supabase.table("phrases")
-            .select("*")
-            .eq("room_code", code)
-            .execute()
-        )
-        nb_phrases_soumises = len(res_phrases.data)
-        deja_soumis = any(p["auteur"] == pseudo for p in res_phrases.data)
-
-        st.progress(min(1.0, nb_phrases_soumises / max(1, total_joueurs)))
-        st.caption(
-            f"Phrases soumises : {nb_phrases_soumises} / {total_joueurs}"
-        )
-
-        if temps_restant <= 0 or nb_phrases_soumises >= total_joueurs:
-            phrases_non_jouees = [
-                p for p in res_phrases.data if not p.get("jouee")
-            ]
-            if phrases_non_jouees:
-                carte = random.choice(phrases_non_jouees)
-                supabase.table("phrases").update({"jouee": True}).eq(
-                    "id", carte["id"]
-                ).execute()
-
-            supabase.table("rooms").update(
-                {"phase": "VOTE", "timer_end": int(time.time()) + 120}
-            ).eq("code", code).execute()
+        if st.sidebar.button("🔄 Actualiser l'état"):
             st.rerun()
 
-        if deja_soumis:
-            st.info(
-                "✅ Ta phrase est enregistrée ! En attente des autres joueurs..."
-            )
-        else:
-            cible = st.selectbox("Qui vises-tu ?", liste_joueurs)
-            phrase_raw = st.text_area("Sa phrase typique :")
-            phrase_clean = phrase_raw.strip() if phrase_raw else ""
+        if phase_actuelle == "ATTENTE":
+            st.write("## ⏳ Salle d'attente")
+            st.info(f"En attente des joueurs... ({total_joueurs} présent(s))")
 
-            if st.button("Valider ma phrase", use_container_width=True):
-                if phrase_clean:
-                    supabase.table("phrases").insert(
-                        {
-                            "room_code": code,
-                            "auteur": pseudo,
-                            "cible": cible,
-                            "phrase": phrase_clean,
-                            "jouee": False,
-                        }
-                    ).execute()
-                    st.rerun()
+            st.write("### Joueurs connectés :")
+            for j in liste_joueurs:
+                if j == host_pseudo:
+                    st.write(f"- 👑 **{j}** (Créateur de la partie)")
                 else:
-                    st.error("⚠ Écris une phrase pour valider !")
+                    st.write(f"- 👤 **{j}**")
 
-    elif phase_actuelle == "VOTE":
-        afficher_compte_a_rebours(
-            timer_end, char_info["accent"], char_info["primary"]
-        )
-        temps_restant = max(0, timer_end - int(time.time()))
+            st.write("---")
 
-        st.write("## 🎲 Étape 2 : Votez pour la cible !")
-
-        carte_actuelle = (
-            supabase.table("phrases")
-            .select("*")
-            .eq("room_code", code)
-            .eq("jouee", True)
-            .order("id", desc=True)
-            .limit(1)
-            .execute()
-        )
-
-        if carte_actuelle.data:
-            carte = carte_actuelle.data[0]
-            st.markdown(
-                f"<div class='phrase-card'>« {carte['phrase']} »</div>",
-                unsafe_allow_html=True,
+            lien_partage = (
+                f"https://impostor-game-multi.streamlit.app/?room={code}"
             )
-
-            res_votes = (
-                supabase.table("votes")
-                .select("*")
-                .eq("phrase_id", carte["id"])
-                .execute()
-            )
-            nb_votes = len(res_votes.data)
-            deja_vote = any(v["votant"] == pseudo for v in res_votes.data)
-
-            if temps_restant <= 0 or nb_votes >= total_joueurs:
-                supabase.table("rooms").update(
-                    {"phase": "RESULTATS", "timer_end": int(time.time()) + 120}
-                ).eq("code", code).execute()
-                st.rerun()
-
-            if deja_vote:
-                st.info(
-                    "✅ Ton vote est validé ! En attente de la fin du temps..."
-                )
-            else:
-                vote_choix = st.radio(
-                    "Qui a écrit cette phrase ?", liste_joueurs
-                )
-                if st.button("Valider mon vote", use_container_width=True):
-                    supabase.table("votes").upsert(
-                        {
-                            "phrase_id": carte["id"],
-                            "votant": pseudo,
-                            "cible_votee": vote_choix,
-                        }
-                    ).execute()
-                    st.rerun()
-
-    elif phase_actuelle == "RESULTATS":
-        st.write("## 📊 Étape 3 : Révélation")
-
-        carte_actuelle = (
-            supabase.table("phrases")
-            .select("*")
-            .eq("room_code", code)
-            .eq("jouee", True)
-            .order("id", desc=True)
-            .limit(1)
-            .execute()
-        )
-
-        if carte_actuelle.data:
-            carte = carte_actuelle.data[0]
-            res_votes = (
-                supabase.table("votes")
-                .select("cible_votee")
-                .eq("phrase_id", carte["id"])
-                .execute()
-            )
-
-            if res_votes.data:
-                counts = {}
-                for v in res_votes.data:
-                    c = v["cible_votee"]
-                    counts[c] = counts.get(c, 0) + 1
-
-                fig, ax = plt.subplots(figsize=(5, 5))
-                fig.patch.set_facecolor("none")
-                ax.set_facecolor("none")
-
-                ax.pie(
-                    counts.values(),
-                    labels=counts.keys(),
-                    autopct="%1.1f%%",
-                    startangle=140,
-                    textprops=dict(color="white", weight="bold"),
-                )
-                ax.axis("equal")
-                st.pyplot(fig)
-
-            st.markdown(
-                f"""
-            <div class='revelation-card'>
-                <h2>🎯 La Cible : {carte['cible']}</h2>
-                <h3> Auteur : {carte['auteur']}</h3>
-            </div>
-            """,
-                unsafe_allow_html=True,
+            st.subheader("📲 Partager la salle avec vos amis")
+            st.code(lien_partage, language=None)
+            st.caption(
+                "Copiez ce lien et envoyez-le sur WhatsApp ! Vos amis n'auront qu'à entrer leur pseudo."
             )
 
             st.write("---")
 
-            all_phrases = (
+            if pseudo == host_pseudo:
+                st.success(
+                    "👑 Tu es l'hôte ! Clique ci-dessous pour démarrer dès que tout le monde est là."
+                )
+                if st.button("🚀 Lancer la partie", use_container_width=True):
+                    supabase.table("rooms").update(
+                        {
+                            "phase": "ECRITURE",
+                            "timer_end": int(time.time()) + 120,
+                        }
+                    ).eq("code", code).execute()
+                    st.rerun()
+            else:
+                st.warning(f"Attendez que **{host_pseudo}** lance la partie...")
+
+            components.html(
+                """
+                <script>
+                    setTimeout(function(){
+                        window.parent.postMessage({type: 'streamlit:rerun'}, '*');
+                    }, 4000);
+                </script>
+                """,
+                height=0,
+            )
+
+        elif phase_actuelle == "ECRITURE":
+            afficher_compte_a_rebours(
+                timer_end, char_info["accent"], char_info["primary"]
+            )
+            temps_restant = max(0, timer_end - int(time.time()))
+
+            st.write("## ✍️ Étape 1 : Écrire une phrase")
+
+            res_phrases = (
                 supabase.table("phrases")
                 .select("*")
                 .eq("room_code", code)
                 .execute()
-                .data
             )
-            phrases_restantes = [p for p in all_phrases if not p.get("jouee")]
+            nb_phrases_soumises = len(res_phrases.data)
+            deja_soumis = any(p["auteur"] == pseudo for p in res_phrases.data)
 
-            if phrases_restantes:
-                if st.button("▶️️ Phrase suivante", use_container_width=True):
-                    prochaine_carte = random.choice(phrases_restantes)
+            st.progress(min(1.0, nb_phrases_soumises / max(1, total_joueurs)))
+            st.caption(
+                f"Phrases soumises : {nb_phrases_soumises} / {total_joueurs}"
+            )
+
+            if temps_restant <= 0 or nb_phrases_soumises >= total_joueurs:
+                phrases_non_jouees = [
+                    p for p in res_phrases.data if not p.get("jouee")
+                ]
+                if phrases_non_jouees:
+                    carte = random.choice(phrases_non_jouees)
                     supabase.table("phrases").update({"jouee": True}).eq(
-                        "id", prochaine_carte["id"]
+                        "id", carte["id"]
                     ).execute()
 
-                    theme_suivant = random.choice(list(PALETTES.keys()))
+                supabase.table("rooms").update(
+                    {"phase": "VOTE", "timer_end": int(time.time()) + 120}
+                ).eq("code", code).execute()
+                st.rerun()
+
+            if deja_soumis:
+                st.info(
+                    "✅ Ta phrase est enregistrée ! En attente des autres joueurs..."
+                )
+            else:
+                cible = st.selectbox("Qui vises-tu ?", liste_joueurs)
+                phrase_raw = st.text_area("Sa phrase typique :")
+                phrase_clean = phrase_raw.strip() if phrase_raw else ""
+
+                if st.button("Valider ma phrase", use_container_width=True):
+                    if phrase_clean:
+                        supabase.table("phrases").insert(
+                            {
+                                "room_code": code,
+                                "auteur": pseudo,
+                                "cible": cible,
+                                "phrase": phrase_clean,
+                                "jouee": False,
+                            }
+                        ).execute()
+                        st.rerun()
+                    else:
+                        st.error("⚠ Écris une phrase pour valider !")
+
+        elif phase_actuelle == "VOTE":
+            afficher_compte_a_rebours(
+                timer_end, char_info["accent"], char_info["primary"]
+            )
+            temps_restant = max(0, timer_end - int(time.time()))
+
+            st.write("## 🎲 Étape 2 : Votez pour la cible !")
+
+            carte_actuelle = (
+                supabase.table("phrases")
+                .select("*")
+                .eq("room_code", code)
+                .eq("jouee", True)
+                .order("id", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            if carte_actuelle.data:
+                carte = carte_actuelle.data[0]
+                st.markdown(
+                    f"<div class='phrase-card'>« {carte['phrase']} »</div>",
+                    unsafe_allow_html=True,
+                )
+
+                res_votes = (
+                    supabase.table("votes")
+                    .select("*")
+                    .eq("phrase_id", carte["id"])
+                    .execute()
+                )
+                nb_votes = len(res_votes.data)
+                deja_vote = any(v["votant"] == pseudo for v in res_votes.data)
+
+                if temps_restant <= 0 or nb_votes >= total_joueurs:
                     supabase.table("rooms").update(
-                        {
-                            "phase": "VOTE",
-                            "timer_end": int(time.time()) + 120,
-                            "theme": theme_suivant,
-                        }
+                        {"phase": "RESULTATS", "timer_end": int(time.time()) + 120}
                     ).eq("code", code).execute()
                     st.rerun()
 
-            else:
-                st.success("🎉 Toutes les phrases soumises ont été jouées !")
-                col_partie, col_quitter = st.columns(2)
+                if deja_vote:
+                    st.info(
+                        "✅ Ton vote est validé ! En attente de la fin du temps..."
+                    )
+                else:
+                    vote_choix = st.radio(
+                        "Qui a écrit cette phrase ?", liste_joueurs
+                    )
+                    if st.button("Valider mon vote", use_container_width=True):
+                        supabase.table("votes").upsert(
+                            {
+                                "phrase_id": carte["id"],
+                                "votant": pseudo,
+                                "cible_votee": vote_choix,
+                            }
+                        ).execute()
+                        st.rerun()
 
-                with col_partie:
-                    if st.button(
-                        "Refaire une nouvelle partie",
-                        use_container_width=True,
-                    ):
-                        supabase.table("phrases").delete().eq(
-                            "room_code", code
+        elif phase_actuelle == "RESULTATS":
+            st.write("## 📊 Étape 3 : Révélation")
+
+            carte_actuelle = (
+                supabase.table("phrases")
+                .select("*")
+                .eq("room_code", code)
+                .eq("jouee", True)
+                .order("id", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            if carte_actuelle.data:
+                carte = carte_actuelle.data[0]
+                res_votes = (
+                    supabase.table("votes")
+                    .select("cible_votee")
+                    .eq("phrase_id", carte["id"])
+                    .execute()
+                )
+
+                if res_votes.data:
+                    counts = {}
+                    for v in res_votes.data:
+                        c = v["cible_votee"]
+                        counts[c] = counts.get(c, 0) + 1
+
+                    fig, ax = plt.subplots(figsize=(5, 5))
+                    fig.patch.set_facecolor("none")
+                    ax.set_facecolor("none")
+
+                    ax.pie(
+                        counts.values(),
+                        labels=counts.keys(),
+                        autopct="%1.1f%%",
+                        startangle=140,
+                        textprops=dict(color="white", weight="bold"),
+                    )
+                    ax.axis("equal")
+                    st.pyplot(fig)
+
+                st.markdown(
+                    f"""
+                <div class='revelation-card'>
+                    <h2>🎯 La Cible : {carte['cible']}</h2>
+                    <h3> Auteur : {carte['auteur']}</h3>
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+                st.write("---")
+
+                all_phrases = (
+                    supabase.table("phrases")
+                    .select("*")
+                    .eq("room_code", code)
+                    .execute()
+                    .data
+                )
+                phrases_restantes = [p for p in all_phrases if not p.get("jouee")]
+
+                if phrases_restantes:
+                    if st.button("▶ Phrase suivante", use_container_width=True):
+                        prochaine_carte = random.choice(phrases_restantes)
+                        supabase.table("phrases").update({"jouee": True}).eq(
+                            "id", prochaine_carte["id"]
                         ).execute()
 
                         theme_suivant = random.choice(list(PALETTES.keys()))
                         supabase.table("rooms").update(
                             {
-                                "phase": "ECRITURE",
+                                "phase": "VOTE",
                                 "timer_end": int(time.time()) + 120,
                                 "theme": theme_suivant,
                             }
                         ).eq("code", code).execute()
                         st.rerun()
 
-                with col_quitter:
-                    if st.button(
-                        "Quitter la partie", use_container_width=True
-                    ):
-                        st.session_state.code_chambre = None
-                        st.rerun()
+                else:
+                    st.success("🎉 Toutes les phrases soumises ont été jouées !")
+                    col_partie, col_quitter = st.columns(2)
 
-        st.write("---")
-        st.subheader("🔗 Partager la partie")
+                    with col_partie:
+                        if st.button(
+                            "Refaire une nouvelle partie",
+                            use_container_width=True,
+                        ):
+                            supabase.table("phrases").delete().eq(
+                                "room_code", code
+                            ).execute()
 
-        lien_partage = (
-            f"https://impostor-game-genshin.streamlit.app/?room={code}"
-        )
+                            theme_suivant = random.choice(list(PALETTES.keys()))
+                            supabase.table("rooms").update(
+                                {
+                                    "phase": "ECRITURE",
+                                    "timer_end": int(time.time()) + 120,
+                                    "theme": theme_suivant,
+                                }
+                            ).eq("code", code).execute()
+                            st.rerun()
 
-        col_link, col_copy = st.columns([3, 1])
-        with col_link:
-            st.text_input(
-                "Lien :",
-                value=lien_partage,
-                disabled=True,
-                label_visibility="collapsed",
+                    with col_quitter:
+                        if st.button(
+                            "Quitter la partie", use_container_width=True
+                        ):
+                            st.session_state.code_chambre = None
+                            st.rerun()
+
+            st.write("---")
+            st.subheader("🔗 Partager la partie")
+
+            lien_partage = (
+                f"https://impostor-game-multi.streamlit.app/?room={code}"
             )
-        with col_copy:
-            if st.button("Copier"):
-                st.toast("Lien copié !", icon="✅")
-                
 
-        if st.button("Quitter la salle"):
-            st.session_state.code_chambre = None
-            st.rerun()
+            col_link, col_copy = st.columns([3, 1])
+            with col_link:
+                st.text_input(
+                    "Lien :",
+                    value=lien_partage,
+                    disabled=True,
+                    label_visibility="collapsed",
+                )
+            with col_copy:
+                if st.button("Copier"):
+                    st.toast("Lien copié !", icon="✅")
+
+            if st.button("Quitter la salle"):
+                st.session_state.code_chambre = None
+                st.rerun()
