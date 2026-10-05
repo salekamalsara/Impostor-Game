@@ -19,10 +19,6 @@ if "code_chambre" not in st.session_state:
 if "pseudo" not in st.session_state:
     st.session_state.pseudo = ""
 
-query_params = st.query_params
-if "room" in query_params and not st.session_state.code_chambre:
-    st.session_state.code_chambre = str(query_params["room"]).upper()
-
 
 PALETTES = {
     "Kinich": {
@@ -243,7 +239,6 @@ PALETTES = {
     },
 }
 
-# Lecture sécurisée des clés de secrets Supabase
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
@@ -403,6 +398,13 @@ def appliquer_style(theme_key):
 
 
 if not st.session_state.code_chambre:
+    try:
+        query_params = st.query_params
+        if "room" in query_params and not st.session_state.code_chambre:
+            st.session_state.code_chambre = str(query_params["room"]).upper()
+    except Exception:
+        pass
+
     appliquer_style("Kinich")
 
     st.markdown(
