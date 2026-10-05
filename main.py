@@ -261,6 +261,12 @@ supabase = init_supabase()
 def generer_code():
     return "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k=4))
 
+def rafraichir_page_auto(secondes=3):
+    st.markdown(
+        f'<meta http-equiv="refresh" content="{secondes}">',
+        unsafe_allow_html=True,
+    )
+
 def afficher_compte_a_rebours(timer_end, accent_color, primary_color):
     js_code = f"""
     <div id="timer-box" style="
@@ -280,17 +286,12 @@ def afficher_compte_a_rebours(timer_end, accent_color, primary_color):
 
     <script>
         const timerEnd = {timer_end};
-        let isReloaded = false;
         function updateTimer() {{
             const now = Math.floor(Date.now() / 1000);
             const remaining = Math.max(0, timerEnd - now);
             const elem = document.getElementById("time-left");
             if (elem) {{
                 elem.innerText = remaining;
-            }}
-            if (remaining <= 0 && !isReloaded) {{
-                isReloaded = true;
-                window.parent.postMessage({{type: 'streamlit:rerun'}}, '*');
             }}
         }}
         updateTimer();
@@ -456,6 +457,9 @@ else:
             st.rerun()
 
         if phase_actuelle == "ATTENTE":
+            # Rafraîchissement automatique pour voir l'arrivée des nouveaux joueurs
+            rafraichir_page_auto(3)
+
             st.write("## ⏳ Salle d'attente")
             st.info(f"En attente des joueurs... ({total_joueurs} présent(s))")
 
@@ -496,18 +500,6 @@ else:
                     f"Attendez que **{host_pseudo}** lance la partie..."
                 )
 
-            # Auto-rafraîchissement automatique toutes les 3 secondes en salle d'attente
-            components.html(
-                """
-                <script>
-                    setTimeout(function(){
-                        window.parent.postMessage({type: 'streamlit:rerun'}, '*');
-                    }, 3000);
-                </script>
-                """,
-                height=0,
-            )
-
         elif phase_actuelle == "ECRITURE":
             afficher_compte_a_rebours(
                 timer_end, char_info["accent"], char_info["primary"]
@@ -530,6 +522,7 @@ else:
                 f"Phrases soumises : {nb_phrases_soumises} / {total_joueurs}"
             )
 
+            # Changement de phase uniquement si temps écoulé OU tout le monde a soumis
             if temps_restant <= 0 or nb_phrases_soumises >= total_joueurs:
                 phrases_non_jouees = [
                     p for p in res_phrases.data if not p.get("jouee")
@@ -547,18 +540,9 @@ else:
 
             if deja_soumis:
                 st.info(
-                    "✅ Ta phrase est enregistrée ! En attente des autres joueurs..."
+                    "✅ Votre réponse a été enregistrée, en attente des autres participants..."
                 )
-                components.html(
-                    """
-                    <script>
-                        setTimeout(function(){
-                            window.parent.postMessage({type: 'streamlit:rerun'}, '*');
-                        }, 3000);
-                    </script>
-                    """,
-                    height=0,
-                )
+                rafraichir_page_auto(3)
             else:
                 cible = st.selectbox("Qui vises-tu ?", liste_joueurs)
                 phrase_raw = st.text_area("Sa phrase typique :")
@@ -613,6 +597,7 @@ else:
                 nb_votes = len(res_votes.data)
                 deja_vote = any(v["votant"] == pseudo for v in res_votes.data)
 
+                # Changement de phase uniquement si temps écoulé OU tout le monde a voté
                 if temps_restant <= 0 or nb_votes >= total_joueurs:
                     supabase.table("rooms").update(
                         {
@@ -624,18 +609,9 @@ else:
 
                 if deja_vote:
                     st.info(
-                        "✅ Ton vote est validé ! En attente de la fin du temps..."
+                        "✅ Votre réponse a été enregistrée, en attente des autres participants..."
                     )
-                    components.html(
-                        """
-                        <script>
-                            setTimeout(function(){
-                                window.parent.postMessage({type: 'streamlit:rerun'}, '*');
-                            }, 3000);
-                        </script>
-                        """,
-                        height=0,
-                    )
+                    rafraichir_page_auto(3)
                 else:
                     vote_choix = st.radio(
                         "Qui a écrit cette phrase ?", liste_joueurs
