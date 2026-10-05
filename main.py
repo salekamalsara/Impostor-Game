@@ -416,14 +416,15 @@ if not st.session_state.code_chambre:
         unsafe_allow_html=True,
     )
 
-    pseudo_input = st.text_input("👤 Ton pseudo :", placeholder="Ex: Alex")
+    pseudo_raw = st.text_input("👤 Ton pseudo :", placeholder="Ex: Alex")
+    pseudo_input = pseudo_raw.strip() if pseudo_raw else ""
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("🏠 CRÉER")
         if st.button("Lancer une partie", use_container_width=True):
-            if pseudo_input.strip():
+            if pseudo_input:
                 code = generer_code()
                 theme_choisi = random.choice(list(PALETTES.keys()))
 
@@ -433,14 +434,14 @@ if not st.session_state.code_chambre:
                         "phase": "ATTENTE",
                         "timer_end": 0,
                         "theme": theme_choisi,
-                        "host": pseudo_input.strip(),
+                        "host": pseudo_input,
                     }
                 ).execute()
                 supabase.table("players").insert(
-                    {"room_code": code, "pseudo": pseudo_input.strip()}
+                    {"room_code": code, "pseudo": pseudo_input}
                 ).execute()
 
-                st.session_state.pseudo = pseudo_input.strip()
+                st.session_state.pseudo = pseudo_input
                 st.session_state.code_chambre = code
                 st.rerun()
             else:
@@ -449,15 +450,13 @@ if not st.session_state.code_chambre:
     with col2:
         st.subheader("REJOINDRE")
         code_defaut = st.session_state.get("code_chambre", "")
-        code_input = (
-            st.text_input(
-                "Code de chambre :", value=code_defaut, placeholder="Ex: ABCD"
-            )
-            .strip()
-            .upper()
+        code_raw = st.text_input(
+            "Code de chambre :", value=code_defaut if code_defaut else "", placeholder="Ex: ABCD"
         )
+        code_input = code_raw.strip().upper() if code_raw else ""
+
         if st.button("Rejoindre la partie", use_container_width=True):
-            if pseudo_input.strip() and code_input:
+            if pseudo_input and code_input:
                 room_check = (
                     supabase.table("rooms")
                     .select("*")
@@ -469,13 +468,13 @@ if not st.session_state.code_chambre:
                         supabase.table("players").insert(
                             {
                                 "room_code": code_input,
-                                "pseudo": pseudo_input.strip(),
+                                "pseudo": pseudo_input,
                             }
                         ).execute()
                     except Exception:
                         pass
 
-                    st.session_state.pseudo = pseudo_input.strip()
+                    st.session_state.pseudo = pseudo_input
                     st.session_state.code_chambre = code_input
                     st.rerun()
                 else:
@@ -629,16 +628,17 @@ else:
             )
         else:
             cible = st.selectbox("Qui vises-tu ?", liste_joueurs)
-            phrase = st.text_area("Sa phrase typique :")
+            phrase_raw = st.text_area("Sa phrase typique :")
+            phrase_clean = phrase_raw.strip() if phrase_raw else ""
 
             if st.button("Valider ma phrase", use_container_width=True):
-                if phrase.strip():
+                if phrase_clean:
                     supabase.table("phrases").insert(
                         {
                             "room_code": code,
                             "auteur": pseudo,
                             "cible": cible,
-                            "phrase": phrase.strip(),
+                            "phrase": phrase_clean,
                             "jouee": False,
                         }
                     ).execute()
@@ -768,7 +768,7 @@ else:
             phrases_restantes = [p for p in all_phrases if not p.get("jouee")]
 
             if phrases_restantes:
-                if st.button("▶️ Phrase suivante", use_container_width=True):
+                if st.button("▶️️ Phrase suivante", use_container_width=True):
                     prochaine_carte = random.choice(phrases_restantes)
                     supabase.table("phrases").update({"jouee": True}).eq(
                         "id", prochaine_carte["id"]
@@ -832,6 +832,7 @@ else:
         with col_copy:
             if st.button("Copier"):
                 st.toast("Lien copié !", icon="✅")
+                
 
         if st.button("Quitter la salle"):
             st.session_state.code_chambre = None
