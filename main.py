@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import streamlit.components.v1 as components
 from supabase import Client, create_client
+import os
 
 
 st.set_page_config(
@@ -239,8 +240,21 @@ PALETTES = {
     },
 }
 
-SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL:
+    try:
+        SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+    except Exception:
+        SUPABASE_URL = ""
+
+if not SUPABASE_KEY:
+    try:
+        SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+    except Exception:
+        SUPABASE_KEY = ""
 
 
 @st.cache_resource
