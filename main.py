@@ -1,4 +1,3 @@
-import base64
 import random
 import time
 import matplotlib.pyplot as plt
@@ -46,7 +45,7 @@ PALETTES = {
     },
     "Kaveh": {
         "full_name": "Kaveh",
-        "emoji": "🏛️️",
+        "emoji": "🏛️",
         "bg": "linear-gradient(135deg, #1c1917 0%, #3f2e18 50%, #1c1108 100%)",
         "primary": "#f59e0b",
         "secondary": "#fbbf24",
@@ -181,7 +180,7 @@ PALETTES = {
     },
     "Neuvillette": {
         "full_name": "Neuvillette",
-        "emoji": "⚖",
+        "emoji": "⚖️",
         "bg": "linear-gradient(135deg, #0b1a30 0%, #16325c 50%, #050d1a 100%)",
         "primary": "#2563eb",
         "secondary": "#93c5fd",
@@ -244,8 +243,9 @@ PALETTES = {
     },
 }
 
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+# Lecture sécurisée des clés de secrets Supabase
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
 
 @st.cache_resource
@@ -261,7 +261,6 @@ def generer_code():
 
 
 def afficher_compte_a_rebours(timer_end, accent_color, primary_color):
-    """Affiche un timer fluide en JS qui rafraîchit automatiquement la page à 0s."""
     js_code = f"""
     <div id="timer-box" style="
         background-color: {accent_color};
@@ -407,7 +406,7 @@ if not st.session_state.code_chambre:
     appliquer_style("Kinich")
 
     st.markdown(
-        f"""
+        """
         <div class='header-container'>
             <span style='font-size: 2.5rem;'>🎭</span>
             <h1>JEU IMPOSTEUR</h1>
@@ -452,7 +451,9 @@ if not st.session_state.code_chambre:
         st.subheader("REJOINDRE")
         code_defaut = st.session_state.get("code_chambre", "")
         code_raw = st.text_input(
-            "Code de chambre :", value=code_defaut if code_defaut else "", placeholder="Ex: ABCD"
+            "Code de chambre :",
+            value=code_defaut if code_defaut else "",
+            placeholder="Ex: ABCD",
         )
         code_input = code_raw.strip().upper() if code_raw else ""
 
@@ -483,16 +484,12 @@ if not st.session_state.code_chambre:
             else:
                 st.error("Remplis tous les champs !")
 
-
 else:
     code = st.session_state.code_chambre
     pseudo = st.session_state.pseudo
 
     res_room = (
-        supabase.table("rooms")
-        .select("*")
-        .eq("code", code)
-        .execute()
+        supabase.table("rooms").select("*").eq("code", code).execute()
     )
 
     if not res_room.data:
@@ -531,7 +528,9 @@ else:
         total_joueurs = len(liste_joueurs)
 
         st.sidebar.markdown("### Thème actuel")
-        st.sidebar.markdown(f"**{char_info['emoji']} {char_info['full_name']}**")
+        st.sidebar.markdown(
+            f"**{char_info['emoji']} {char_info['full_name']}**"
+        )
         st.sidebar.markdown("---")
         st.sidebar.markdown("### Joueurs en ligne")
         for j in liste_joueurs:
@@ -580,7 +579,9 @@ else:
                     ).eq("code", code).execute()
                     st.rerun()
             else:
-                st.warning(f"Attendez que **{host_pseudo}** lance la partie...")
+                st.warning(
+                    f"Attendez que **{host_pseudo}** lance la partie..."
+                )
 
             components.html(
                 """
@@ -690,7 +691,10 @@ else:
 
                 if temps_restant <= 0 or nb_votes >= total_joueurs:
                     supabase.table("rooms").update(
-                        {"phase": "RESULTATS", "timer_end": int(time.time()) + 120}
+                        {
+                            "phase": "RESULTATS",
+                            "timer_end": int(time.time()) + 120,
+                        }
                     ).eq("code", code).execute()
                     st.rerun()
 
@@ -702,7 +706,9 @@ else:
                     vote_choix = st.radio(
                         "Qui a écrit cette phrase ?", liste_joueurs
                     )
-                    if st.button("Valider mon vote", use_container_width=True):
+                    if st.button(
+                        "Valider mon vote", use_container_width=True
+                    ):
                         supabase.table("votes").upsert(
                             {
                                 "phrase_id": carte["id"],
@@ -773,14 +779,18 @@ else:
                     .execute()
                     .data
                 )
-                phrases_restantes = [p for p in all_phrases if not p.get("jouee")]
+                phrases_restantes = [
+                    p for p in all_phrases if not p.get("jouee")
+                ]
 
                 if phrases_restantes:
-                    if st.button("▶ Phrase suivante", use_container_width=True):
+                    if st.button(
+                        "▶ Phrase suivante", use_container_width=True
+                    ):
                         prochaine_carte = random.choice(phrases_restantes)
-                        supabase.table("phrases").update({"jouee": True}).eq(
-                            "id", prochaine_carte["id"]
-                        ).execute()
+                        supabase.table("phrases").update(
+                            {"jouee": True}
+                        ).eq("id", prochaine_carte["id"]).execute()
 
                         theme_suivant = random.choice(list(PALETTES.keys()))
                         supabase.table("rooms").update(
@@ -793,7 +803,9 @@ else:
                         st.rerun()
 
                 else:
-                    st.success("🎉 Toutes les phrases soumises ont été jouées !")
+                    st.success(
+                        "🎉 Toutes les phrases soumises ont été jouées !"
+                    )
                     col_partie, col_quitter = st.columns(2)
 
                     with col_partie:
@@ -805,7 +817,9 @@ else:
                                 "room_code", code
                             ).execute()
 
-                            theme_suivant = random.choice(list(PALETTES.keys()))
+                            theme_suivant = random.choice(
+                                list(PALETTES.keys())
+                            )
                             supabase.table("rooms").update(
                                 {
                                     "phase": "ECRITURE",
