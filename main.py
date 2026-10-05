@@ -572,7 +572,7 @@ else:
             st.write("---")
 
             lien_partage = (
-                f"https://impostor-game-multi.streamlit.app/?room={code}"
+                f"https://impostor-game-u0ub.onrender.com/?room={code}"
             )
             st.subheader("📲 Partager la salle avec vos amis")
             st.code(lien_partage, language=None)
@@ -856,7 +856,7 @@ else:
             st.subheader("🔗 Partager la partie")
 
             lien_partage = (
-                f"https://impostor-game-multi.streamlit.app/?room={code}"
+                f"https://impostor-game-u0ub.onrender.com/?room={code}"
             )
 
             col_link, col_copy = st.columns([3, 1])
