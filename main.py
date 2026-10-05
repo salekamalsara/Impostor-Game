@@ -6,7 +6,11 @@ import streamlit as st
 import streamlit.components.v1 as components
 from supabase import Client, create_client
 
-# 1. Configuration de la page
+
+query_params = st.query_params
+if "room" in query_params and not st.session_state.code_chambre:
+    st.session_state.code_chambre = query_params["room"].upper()
+
 st.set_page_config(
     page_title="Jeu Imposteur",
     page_icon="🎭",
@@ -14,24 +18,25 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# 2. Dictionnaire des personnages avec émojis
+
+
 PALETTES = {
     "Kinich": {
         "full_name": "Kinich",
         "emoji": "🦖",
-        "bg": "linear-gradient(135deg, #062312 0%, #114220 50%, #03140a 100%)",
+        "bg": "linear-gradient(135deg, #052e16 0%, #15803d 50%, #022c22 100%)",
         "primary": "#22c55e",
-        "secondary": "#a3e635",
-        "accent": "#15803d",
+        "secondary": "#84cc16",
+        "accent": "#16a34a",
         "text_title": "#86efac",
     },
     "Alhaitham": {
         "full_name": "Alhaitham",
-        "emoji": "🌱",
-        "bg": "linear-gradient(135deg, #051e18 0%, #0d382e 50%, #02120e 100%)",
-        "primary": "#10b981",
-        "secondary": "#2dd4bf",
-        "accent": "#047857",
+        "emoji": "📖",
+        "bg": "linear-gradient(135deg, #042f2e 0%, #0d9488 50%, #022c22 100%)",
+        "primary": "#14b8a6",
+        "secondary": "#5eead4",
+        "accent": "#0f766e",
         "text_title": "#99f6e4",
     },
     "Kaveh": {
@@ -81,11 +86,11 @@ PALETTES = {
     },
     "Wanderer": {
         "full_name": "Wanderer",
-        "emoji": "🌾",
-        "bg": "linear-gradient(135deg, #0a1b3a 0%, #193663 50%, #050d1e 100%)",
-        "primary": "#3b82f6",
-        "secondary": "#38bdf8",
-        "accent": "#1d4ed8",
+        "emoji": "🎓",
+        "bg": "linear-gradient(135deg, #0a1b3a 0%, #0284c7 50%, #032b45 100%)",
+        "primary": "#38bdf8",
+        "secondary": "#7dd3fc",
+        "accent": "#0284c7",
         "text_title": "#bae6fd",
     },
     "Varka": {
@@ -126,8 +131,8 @@ PALETTES = {
     },
     "Flins": {
         "full_name": "Flins",
-        "emoji": "🌊",
-        "bg": "linear-gradient(135deg, #031e2e 0%, #0a3a54 50%, #010f17 100%)",
+        "emoji": "🪦",
+        "bg": "linear-gradient(135deg, #02131d 0%, #092c3e 50%, #010a10 100%)",
         "primary": "#0284c7",
         "secondary": "#38bdf8",
         "accent": "#0369a1",
@@ -135,21 +140,21 @@ PALETTES = {
     },
     "Mitya": {
         "full_name": "Mitya",
-        "emoji": "🔮",
-        "bg": "linear-gradient(135deg, #1e0b36 0%, #381861 50%, #0f041d 100%)",
-        "primary": "#c084fc",
-        "secondary": "#f0abfc",
-        "accent": "#7e22ce",
+        "emoji": "🧪",
+        "bg": "linear-gradient(135deg, #1e0b36 0%, #4c1d95 50%, #0f041d 100%)",
+        "primary": "#a855f7",
+        "secondary": "#e9d5ff",
+        "accent": "#6b21a8",
         "text_title": "#f3e8ff",
     },
     "Valeriy": {
         "full_name": "Valeriy",
-        "emoji": "🗡️",
-        "bg": "linear-gradient(135deg, #2b080c 0%, #4a1218 50%, #170305 100%)",
-        "primary": "#dc2626",
-        "secondary": "#fca5a5",
-        "accent": "#991b1b",
-        "text_title": "#fecaca",
+        "emoji": "🐻",
+        "bg": "linear-gradient(135deg, #1f0a2e 0%, #3b0764 50%, #12031c 100%)",
+        "primary": "#8b5cf6",
+        "secondary": "#ddd6fe",
+        "accent": "#6d28d9",
+        "text_title": "#c4b5fd",
     },
     "Zhongli": {
         "full_name": "Zhongli",
@@ -207,11 +212,11 @@ PALETTES = {
     },
     "Alyosha": {
         "full_name": "Alyosha",
-        "emoji": "🛡️",
-        "bg": "linear-gradient(135deg, #181d26 0%, #2c3545 50%, #0d1017 100%)",
-        "primary": "#0284c7",
+        "emoji": "🐕",
+        "bg": "linear-gradient(135deg, #0f172a 0%, #334155 50%, #020617 100%)",
+        "primary": "#38bdf8",
         "secondary": "#94a3b8",
-        "accent": "#0369a1",
+        "accent": "#0284c7",
         "text_title": "#e2e8f0",
     },
     "Durin": {
@@ -234,7 +239,6 @@ PALETTES = {
     },
 }
 
-# 3. Accès Supabase
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
@@ -351,7 +355,6 @@ def appliquer_style(theme_key):
             border: none !important;
         }}
 
-        /* Style global pour les champs de texte et sélecteurs */
         .stTextInput input, .stTextArea textarea, div[data-baseweb="select"] input {{
             background-color: #ffffff !important;
             color: #0f172a !important;
@@ -366,7 +369,6 @@ def appliquer_style(theme_key):
             border-radius: 8px !important;
         }}
 
-        /* Style spécifique pour les questions et options radio (ex: "Qui a écrit cette phrase ?") */
         div[data-testid="stRadio"] label {{
             color: #ffffff !important;
             font-weight: 700 !important;
@@ -378,7 +380,6 @@ def appliquer_style(theme_key):
             font-size: 1.1rem !important;
         }}
 
-        /* Style des étiquettes des formulaires (labels) */
         label {{
             color: #ffffff !important;
             font-weight: 700 !important;
@@ -402,9 +403,7 @@ def appliquer_style(theme_key):
     st.markdown(css, unsafe_allow_html=True)
 
 
-# ==========================================
-# ÉCRAN 1 : CONNEXION
-# ==========================================
+
 if not st.session_state.code_chambre:
     appliquer_style("Kinich")
 
@@ -429,12 +428,14 @@ if not st.session_state.code_chambre:
             if pseudo_input.strip():
                 code = generer_code()
                 theme_choisi = random.choice(list(PALETTES.keys()))
+
                 supabase.table("rooms").insert(
                     {
                         "code": code,
-                        "phase": "ECRITURE",
-                        "timer_end": int(time.time()) + 120,
+                        "phase": "ATTENTE",
+                        "timer_end": 0,
                         "theme": theme_choisi,
+                        "host": pseudo_input.strip(),
                     }
                 ).execute()
                 supabase.table("players").insert(
@@ -448,7 +449,7 @@ if not st.session_state.code_chambre:
                 st.error("Renseigne ton pseudo !")
 
     with col2:
-        st.subheader("🔑 REJOINDRE")
+        st.subheader("REJOINDRE")
         code_input = (
             st.text_input("Code de chambre :", placeholder="Ex: ABCD")
             .strip()
@@ -481,9 +482,7 @@ if not st.session_state.code_chambre:
             else:
                 st.error("Remplis tous les champs !")
 
-# ==========================================
-# ÉCRAN 2 : SALLE DE JEU
-# ==========================================
+
 else:
     code = st.session_state.code_chambre
     pseudo = st.session_state.pseudo
@@ -495,14 +494,13 @@ else:
         .execute()
         .data[0]
     )
-    phase_actuelle = room_data.get("phase", "ECRITURE")
-    timer_end = room_data.get("timer_end", int(time.time()))
+    phase_actuelle = room_data.get("phase", "ATTENTE")
+    timer_end = room_data.get("timer_end", 0)
     theme_key = room_data.get("theme", "Kinich")
+    host_pseudo = room_data.get("host", "")
 
     char_info = PALETTES.get(theme_key, PALETTES["Kinich"])
     appliquer_style(theme_key)
-
-    temps_restant = max(0, timer_end - int(time.time()))
 
     st.markdown(
         f"<div class='character-icon'>{char_info['emoji']}</div>",
@@ -529,21 +527,51 @@ else:
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Joueurs en ligne")
     for j in liste_joueurs:
-        st.sidebar.markdown(f"- **{j}**")
+        if j == host_pseudo:
+            st.sidebar.markdown(f"- **{j} 👑 (Hôte)**")
+        else:
+            st.sidebar.markdown(f"- **{j}**")
 
     if st.sidebar.button("🔄 Actualiser l'état"):
         st.rerun()
 
-    # Compte à rebours dynamique
-    afficher_compte_a_rebours(
-        timer_end, char_info["accent"], char_info["primary"]
-    )
 
-    # ------------------------------------------
-    # PHASE 1 : ÉCRITURE
-    # ------------------------------------------
-    if phase_actuelle == "ECRITURE":
-        st.write("## ✍️ Étape 1 : Écrire une phrase")
+
+    if phase_actuelle == "ATTENTE":
+        st.write("## ⏳ Salle d'attente")
+        st.info(f"En attente des joueurs... ({total_joueurs} présent(s))")
+
+        st.write("### Joueurs connectés :")
+        for j in liste_joueurs:
+            if j == host_pseudo:
+                st.write(f"- 👑 **{j}** (Créateur de la partie)")
+            else:
+                st.write(f"- 👤 **{j}**")
+
+        st.write("---")
+
+        if pseudo == host_pseudo:
+            st.success("👑 Tu es l'hôte ! Cliquez ci-dessous pour démarrer dès que tout le monde est là.")
+            if st.button("🚀 Lancer la partie", use_container_width=True):
+                supabase.table("rooms").update(
+                    {
+                        "phase": "ECRITURE",
+                        "timer_end": int(time.time()) + 120,
+                    }
+                ).eq("code", code).execute()
+                st.rerun()
+        else:
+            st.warning(f"Attendez que **{host_pseudo}** lance la partie...")
+
+
+
+    elif phase_actuelle == "ECRITURE":
+        afficher_compte_a_rebours(
+            timer_end, char_info["accent"], char_info["primary"]
+        )
+        temps_restant = max(0, timer_end - int(time.time()))
+
+        st.write("## Phase 1 : Écrire une phrase")
 
         res_phrases = (
             supabase.table("phrases")
@@ -597,11 +625,15 @@ else:
                 else:
                     st.error("⚠ Écris une phrase pour valider !")
 
-    # ------------------------------------------
-    # PHASE 2 : VOTE
-    # ------------------------------------------
+
+
     elif phase_actuelle == "VOTE":
-        st.write("## 🎲 Étape 2 : Votez pour la cible !")
+        afficher_compte_a_rebours(
+            timer_end, char_info["accent"], char_info["primary"]
+        )
+        temps_restant = max(0, timer_end - int(time.time()))
+
+        st.write("## Phase 2: Votez pour la cible !")
 
         carte_actuelle = (
             supabase.table("phrases")
@@ -653,11 +685,11 @@ else:
                     ).execute()
                     st.rerun()
 
-    # ------------------------------------------
-    # PHASE 3 : RÉSULTATS
-    # ------------------------------------------
+
+
+
     elif phase_actuelle == "RESULTATS":
-        st.write("## 📊 Étape 3 : Révélation")
+        st.write("## 📊 Phase 3 : Révélation")
 
         carte_actuelle = (
             supabase.table("phrases")
@@ -702,7 +734,7 @@ else:
                 f"""
             <div class='revelation-card'>
                 <h2>🎯 La Cible : {carte['cible']}</h2>
-                <h3>✍️ Auteur : {carte['auteur']}</h3>
+                <h3> Auteur : {carte['auteur']}</h3>
             </div>
             """,
                 unsafe_allow_html=True,
@@ -742,7 +774,7 @@ else:
 
                 with col_partie:
                     if st.button(
-                        "🔄 Refaire une nouvelle partie",
+                        "Refaire une nouvelle partie",
                         use_container_width=True,
                     ):
                         supabase.table("phrases").delete().eq(
@@ -761,26 +793,27 @@ else:
 
                 with col_quitter:
                     if st.button(
-                        "🚪 Quitter la partie", use_container_width=True
+                        "Quitter la partie", use_container_width=True
                     ):
                         st.session_state.code_chambre = None
                         st.rerun()
 
-    # ------------------------------------------
-    # PARTAGE
-    # ------------------------------------------
-    st.write("---")
-    st.subheader("🔗 Partager la partie")
-    lien_partage = f"https://impostorgame.streamlit.app/?room={code}"
 
-    col_link, col_copy = st.columns([3, 1])
-    with col_link:
-        st.text_input("Lien :", value=lien_partage, disabled=True)
-    with col_copy:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("📋 Copier"):
-            st.toast("Lien copié !", icon="✅")
+        st.write("---")
+        st.subheader("🔗 Partager la partie")
 
-    if st.button("Quitter la salle"):
-        st.session_state.code_chambre = None
-        st.rerun()
+
+        lien_partage = f"https://impostor-game-genshin.streamlit.app/?room={code}"
+
+        col_link, col_copy = st.columns([3, 1])
+        with col_link:
+            st.text_input(
+                "Lien :", value=lien_partage, disabled=True, label_visibility="collapsed"
+            )
+        with col_copy:
+            if st.button("Copier"):
+                st.toast("Lien copié !", icon="✅")
+
+        if st.button("Quitter la salle"):
+            st.session_state.code_chambre = None
+            st.rerun()
